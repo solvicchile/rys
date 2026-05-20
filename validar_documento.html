@@ -107,45 +107,65 @@
       text-align: center;
     }
 
-    .error {
+    .aviso {
       margin-top: 30px;
       padding: 16px;
-      border: 1px solid #e0b4b4;
+      border: 1px solid #cfd8e3;
       border-radius: 8px;
-      background: #fff6f6;
-      color: #8a1f1f;
+      background: #f8fafc;
+      color: #2f3b4a;
       font-size: 15px;
       line-height: 1.4;
+    }
+
+    .error {
+      border-color: #e0b4b4;
+      background: #fff6f6;
+      color: #8a1f1f;
     }
   </style>
 </head>
 <body>
   <main>
     <img class="logo" src="logo.png" alt="Logo">
-    <section id="contenido"></section>
+    <section id="contenido">
+      <div class="aviso">Consultando estado documental...</div>
+    </section>
   </main>
 
   <script>
+    const SUPABASE_URL = "https://xgajgsranipwivnspsot.supabase.co";
+    const SUPABASE_ANON_KEY = "https://xgajgsranipwivnspsot.supabase.co/rest/v1/";
     const contenido = document.querySelector("#contenido");
 
-    function decodificarPayload() {
+    function parametroCodigo() {
       const params = new URLSearchParams(window.location.search);
-      const dato = params.get("d");
+      const codigo = (params.get("codigo") || "").trim();
 
-      if (!dato) {
-        throw new Error("El QR no contiene datos de validacion.");
+      if (codigo) {
+        return codigo;
       }
 
-      const normalizado = dato.replace(/-/g, "+").replace(/_/g, "/");
-      const relleno = "=".repeat((4 - normalizado.length % 4) % 4);
-      const json = decodeURIComponent(
-        Array.from(atob(normalizado + relleno), c => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join("")
-      );
-      return JSON.parse(json);
+      const datoAnterior = params.get("d");
+
+      if (!datoAnterior) {
+        return "";
+      }
+
+      try {
+        const normalizado = datoAnterior.replace(/-/g, "+").replace(/_/g, "/");
+        const relleno = "=".repeat((4 - normalizado.length % 4) % 4);
+        const json = decodeURIComponent(
+          Array.from(atob(normalizado + relleno), c => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join("")
+        );
+        return (JSON.parse(json).codigo || "").trim();
+      } catch (error) {
+        return "";
+      }
     }
 
     function valor(texto) {
-      return texto && String(texto).trim() ? texto : "Pendiente";
+      return texto && String(texto).trim() ? String(texto) : "Pendiente";
     }
 
     function escapar(texto) {
@@ -155,6 +175,30 @@
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+    }
+
+    function formatearFecha(fecha) {
+      if (!fecha) {
+        return "Pendiente";
+      }
+
+      const valorFecha = new Date(fecha);
+
+      if (Number.isNaN(valorFecha.getTime())) {
+        return fecha;
+      }
+
+      return valorFecha.toLocaleString("es-CL", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function mostrarError(mensaje) {
+      contenido.innerHTML = `<div class="aviso error">${escapar(mensaje)}</div>`;
     }
 
     function renderizar(datos) {
@@ -168,21 +212,59 @@
         <div class="datos">
           <div class="fila"><div class="etiqueta">Estado</div><div class="valor">${escapar(datos.estado)}</div></div>
           <div class="fila"><div class="etiqueta">Creado por</div><div class="valor">${escapar(datos.creado_por)}</div></div>
-          <div class="fila"><div class="etiqueta">Fecha creacion</div><div class="valor">${escapar(datos.fecha_creacion)}</div></div>
+          <div class="fila"><div class="etiqueta">Fecha creacion</div><div class="valor">${escapar(formatearFecha(datos.fecha_creacion))}</div></div>
           <div class="fila"><div class="etiqueta">Revisado por</div><div class="valor">${escapar(datos.revisado_por)}</div></div>
-          <div class="fila"><div class="etiqueta">Fecha revision</div><div class="valor">${escapar(datos.fecha_revision)}</div></div>
+          <div class="fila"><div class="etiqueta">Fecha revision</div><div class="valor">${escapar(formatearFecha(datos.fecha_revision))}</div></div>
           <div class="fila"><div class="etiqueta">Aprobado por</div><div class="valor">${escapar(datos.aprobado_por)}</div></div>
-          <div class="fila"><div class="etiqueta">Fecha aprobacion</div><div class="valor">${escapar(datos.fecha_aprobacion)}</div></div>
+          <div class="fila"><div class="etiqueta">Fecha aprobacion</div><div class="valor">${escapar(formatearFecha(datos.fecha_aprobacion))}</div></div>
         </div>
-        <p class="pie">Validacion generada por GCDRYS-2. Para validacion en tiempo real, conecte esta pagina a un endpoint publico por codigo documental.</p>
+        <p class="pie">Validacion en tiempo real generada por GCDRYS-2.</p>
       `;
     }
 
-    try {
-      renderizar(decodificarPayload());
-    } catch (error) {
-      contenido.innerHTML = `<div class="error">${error.message}</div>`;
+    async function consultarDocumento(codigo) {
+      if (SUPABASE_ANON_KEY === "PEGAR_ANON_KEY_AQUI") {
+        throw new Error("Falta configurar SUPABASE_ANON_KEY en validar_documento.html.");
+      }
+
+      const url = `${SUPABASE_URL}/rest/v1/validacion_documental_publica?codigo=eq.${encodeURIComponent(codigo)}&select=*`;
+      const respuesta = await fetch(url, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+
+      if (!respuesta.ok) {
+        throw new Error("No se pudo consultar el estado documental.");
+      }
+
+      const datos = await respuesta.json();
+
+      if (!datos.length) {
+        throw new Error("Documento no encontrado o no disponible para validacion publica.");
+      }
+
+      return datos[0];
     }
+
+    async function iniciar() {
+      const codigo = parametroCodigo();
+
+      if (!codigo) {
+        mostrarError("El QR no contiene codigo documental.");
+        return;
+      }
+
+      try {
+        const documento = await consultarDocumento(codigo);
+        renderizar(documento);
+      } catch (error) {
+        mostrarError(error.message);
+      }
+    }
+
+    iniciar();
   </script>
 </body>
 </html>
