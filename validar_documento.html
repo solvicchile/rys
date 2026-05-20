@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Validacion Documental GCDRYS</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f3f5f8;
+      color: #20242a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #f3f5f8;
+    }
+
+    main {
+      width: min(100%, 480px);
+      min-height: 100vh;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 24px 20px 28px;
+    }
+
+    .logo {
+      display: block;
+      width: 92px;
+      height: 92px;
+      object-fit: contain;
+      margin: 0 auto 18px;
+    }
+
+    .estado {
+      width: 100%;
+      border-radius: 8px;
+      padding: 14px 12px;
+      color: #ffffff;
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .vigente {
+      background: #1f8f45;
+    }
+
+    .no-vigente {
+      background: #c0392b;
+    }
+
+    h1 {
+      margin: 22px 0 8px;
+      font-size: 21px;
+      line-height: 1.25;
+      text-align: center;
+    }
+
+    .codigo {
+      margin: 0 0 22px;
+      color: #2d5bd1;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    .datos {
+      border-top: 1px solid #e3e7ee;
+      border-bottom: 1px solid #e3e7ee;
+      padding: 14px 0;
+    }
+
+    .fila {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 12px;
+      padding: 9px 0;
+      font-size: 15px;
+      line-height: 1.3;
+    }
+
+    .etiqueta {
+      color: #687180;
+      text-align: right;
+    }
+
+    .valor {
+      color: #20242a;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
+    .pie {
+      margin-top: 20px;
+      color: #687180;
+      font-size: 12px;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    .error {
+      margin-top: 30px;
+      padding: 16px;
+      border: 1px solid #e0b4b4;
+      border-radius: 8px;
+      background: #fff6f6;
+      color: #8a1f1f;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <img class="logo" src="logo.png" alt="Logo">
+    <section id="contenido"></section>
+  </main>
+
+  <script>
+    const contenido = document.querySelector("#contenido");
+
+    function decodificarPayload() {
+      const params = new URLSearchParams(window.location.search);
+      const dato = params.get("d");
+
+      if (!dato) {
+        throw new Error("El QR no contiene datos de validacion.");
+      }
+
+      const normalizado = dato.replace(/-/g, "+").replace(/_/g, "/");
+      const relleno = "=".repeat((4 - normalizado.length % 4) % 4);
+      const json = decodeURIComponent(
+        Array.from(atob(normalizado + relleno), c => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join("")
+      );
+      return JSON.parse(json);
+    }
+
+    function valor(texto) {
+      return texto && String(texto).trim() ? texto : "Pendiente";
+    }
+
+    function escapar(texto) {
+      return valor(texto)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function renderizar(datos) {
+      const vigente = datos.vigencia === "VIGENTE";
+      const claseEstado = vigente ? "vigente" : "no-vigente";
+
+      contenido.innerHTML = `
+        <div class="estado ${claseEstado}">${escapar(datos.vigencia)}</div>
+        <h1>${escapar(datos.nombre)}</h1>
+        <p class="codigo">${escapar(datos.codigo)}</p>
+        <div class="datos">
+          <div class="fila"><div class="etiqueta">Estado</div><div class="valor">${escapar(datos.estado)}</div></div>
+          <div class="fila"><div class="etiqueta">Creado por</div><div class="valor">${escapar(datos.creado_por)}</div></div>
+          <div class="fila"><div class="etiqueta">Fecha creacion</div><div class="valor">${escapar(datos.fecha_creacion)}</div></div>
+          <div class="fila"><div class="etiqueta">Revisado por</div><div class="valor">${escapar(datos.revisado_por)}</div></div>
+          <div class="fila"><div class="etiqueta">Fecha revision</div><div class="valor">${escapar(datos.fecha_revision)}</div></div>
+          <div class="fila"><div class="etiqueta">Aprobado por</div><div class="valor">${escapar(datos.aprobado_por)}</div></div>
+          <div class="fila"><div class="etiqueta">Fecha aprobacion</div><div class="valor">${escapar(datos.fecha_aprobacion)}</div></div>
+        </div>
+        <p class="pie">Validacion generada por GCDRYS-2. Para validacion en tiempo real, conecte esta pagina a un endpoint publico por codigo documental.</p>
+      `;
+    }
+
+    try {
+      renderizar(decodificarPayload());
+    } catch (error) {
+      contenido.innerHTML = `<div class="error">${error.message}</div>`;
+    }
+  </script>
+</body>
+</html>
