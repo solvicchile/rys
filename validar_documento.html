@@ -135,7 +135,7 @@
 
   <script>
     const SUPABASE_URL = "https://xgajgsranipwivnspsot.supabase.co";
-    const SUPABASE_ANON_KEY = "https://xgajgsranipwivnspsot.supabase.co/rest/v1/";
+    const SUPABASE_ANON_KEY = "sb_publishable_beOtFVmvJKiksyHZn_isAg_E-2wSlWp";
     const contenido = document.querySelector("#contenido");
 
     function parametroCodigo() {
@@ -227,6 +227,10 @@
         throw new Error("Falta configurar SUPABASE_ANON_KEY en validar_documento.html.");
       }
 
+      if (SUPABASE_ANON_KEY.startsWith("http")) {
+        throw new Error("SUPABASE_ANON_KEY no debe ser una URL. Pegue la anon public key del proyecto.");
+      }
+
       const url = `${SUPABASE_URL}/rest/v1/validacion_documental_publica?codigo=eq.${encodeURIComponent(codigo)}&select=*`;
       const respuesta = await fetch(url, {
         headers: {
@@ -236,7 +240,8 @@
       });
 
       if (!respuesta.ok) {
-        throw new Error("No se pudo consultar el estado documental.");
+        const detalle = await respuesta.text();
+        throw new Error(`No se pudo consultar el estado documental. HTTP ${respuesta.status}: ${detalle.slice(0, 180)}`);
       }
 
       const datos = await respuesta.json();
