@@ -99,6 +99,45 @@
       overflow-wrap: anywhere;
     }
 
+    .estado-documental {
+      display: inline-block;
+      min-width: 128px;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #ffffff;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .confidencial {
+      display: inline-block;
+      margin-top: 10px;
+      border-radius: 8px;
+      padding: 8px 12px;
+      background: #8e1b1b;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .estado-borrador {
+      background: #64748b;
+    }
+
+    .estado-revision,
+    .estado-pendiente {
+      background: #d79b00;
+    }
+
+    .estado-vigente {
+      background: #1f8f45;
+    }
+
+    .estado-obsoleto,
+    .estado-anulado {
+      background: #c0392b;
+    }
+
     .pie {
       margin-top: 20px;
       color: #687180;
@@ -204,13 +243,18 @@
     function renderizar(datos) {
       const vigente = datos.vigencia === "VIGENTE";
       const claseEstado = vigente ? "vigente" : "no-vigente";
+      const claseEstadoDocumental = claseEstadoActual(datos.estado);
+      const confidencial = datos.confidencial === true || datos.confidencial === "true";
+      const avisoConfidencial = confidencial ? `<div class="confidencial">DOCUMENTO CONFIDENCIAL</div>` : "";
 
       contenido.innerHTML = `
         <div class="estado ${claseEstado}">${escapar(datos.vigencia)}</div>
+        ${avisoConfidencial}
         <h1>${escapar(datos.nombre)}</h1>
         <p class="codigo">${escapar(datos.codigo)}</p>
         <div class="datos">
-          <div class="fila"><div class="etiqueta">Estado</div><div class="valor">${escapar(datos.estado)}</div></div>
+          <div class="fila"><div class="etiqueta">Estado</div><div class="valor"><span class="estado-documental ${claseEstadoDocumental}">${escapar(datos.estado)}</span></div></div>
+          <div class="fila"><div class="etiqueta">Confidencial</div><div class="valor">${confidencial ? "SI" : "NO"}</div></div>
           <div class="fila"><div class="etiqueta">Creado por</div><div class="valor">${escapar(datos.creado_por)}</div></div>
           <div class="fila"><div class="etiqueta">Fecha creacion</div><div class="valor">${escapar(formatearFecha(datos.fecha_creacion))}</div></div>
           <div class="fila"><div class="etiqueta">Revisado por</div><div class="valor">${escapar(datos.revisado_por)}</div></div>
@@ -220,6 +264,32 @@
         </div>
         <p class="pie">Validacion en tiempo real generada por GCDRYS-2.</p>
       `;
+    }
+
+    function claseEstadoActual(estado) {
+      const normalizado = valor(estado).toLowerCase();
+
+      if (normalizado === "vigente") {
+        return "estado-vigente";
+      }
+
+      if (normalizado === "en revision") {
+        return "estado-revision";
+      }
+
+      if (normalizado === "pendiente aprobacion" || normalizado === "pendiente de revision") {
+        return "estado-pendiente";
+      }
+
+      if (normalizado === "obsoleto") {
+        return "estado-obsoleto";
+      }
+
+      if (normalizado === "anulado") {
+        return "estado-anulado";
+      }
+
+      return "estado-borrador";
     }
 
     async function consultarDocumento(codigo) {
